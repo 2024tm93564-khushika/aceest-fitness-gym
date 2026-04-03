@@ -5,26 +5,31 @@ on:
   pull_request:
 
 jobs:
-  build:
+  build-test-docker:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Lint check (basic)
-      run: python -m py_compile app.py
-    
+      - name: Lint check
+        run: python -m py_compile app.py
 
-    - name: Build Docker image
-      run: docker build -t aceest-gym-app .
+      - name: Run tests
+        run: pytest
+
+      - name: Build Docker image
+        run: docker build -t aceest-gym-app .
+
+      - name: Run tests inside container
+        run: docker run aceest-gym-app pytest
