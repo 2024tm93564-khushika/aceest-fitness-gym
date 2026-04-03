@@ -26,10 +26,10 @@ jobs:
         run: python -m py_compile app.py
 
       - name: Run tests
-        run: pytest
+        run: python -m pytest
 
       - name: Build Docker image
         run: docker build -t aceest-gym-app .
 
       - name: Run tests inside container
-        run: docker run aceest-gym-app pytest
+        run: docker run aceest-gym-app python -m pytest
