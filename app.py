@@ -1,8 +1,10 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
+import csv
+import io
 
 app = Flask(__name__)
 
-# v1.1 update: added calorie_factor
+# Programs (same as v1.1)
 programs = {
     "fat_loss": {
         "name": "Fat Loss",
@@ -23,6 +25,9 @@ programs = {
         "calorie_factor": 1.0
     }
 }
+
+# v1.1.2: in-memory client storage
+clients = []
 
 @app.route("/")
 def home():
@@ -62,6 +67,48 @@ def calculate_calories():
         "program": program_name,
         "recommended_calories": result
     }
+
+
+# v1.1.2: add client
+@app.route("/add-client", methods=["POST"])
+def add_client():
+    data = request.get_json()
+
+    name = data.get("name")
+    program = data.get("program")
+    calories = data.get("calories")
+
+    if not name or not program or calories is None:
+        return {"error": "Missing fields"}, 400
+
+    client = {
+        "name": name,
+        "program": program,
+        "calories": calories
+    }
+
+    clients.append(client)
+
+    return {"message": "Client added successfully"}, 201
+
+
+# v1.1.2: view clients
+@app.route("/clients")
+def get_clients():
+    return jsonify(clients)
+
+
+# v1.1.2: export CSV
+@app.route("/export-csv")
+def export_csv():
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["name", "program", "calories"])
+    writer.writeheader()
+
+    for client in clients:
+        writer.writerow(client)
+
+    return Response(output.getvalue(), mimetype="text/csv")
 
 
 if __name__ == "__main__":

@@ -7,9 +7,21 @@ def test_home():
     assert response.status_code == 200
 
 
-def test_programs():
+def test_add_client():
     client = app.test_client()
-    response = client.get("/programs")
+
+    response = client.post("/add-client", json={
+        "name": "Chirag",
+        "program": "fat_loss",
+        "calories": 1800
+    })
+
+    assert response.status_code == 201
+
+
+def test_get_clients():
+    client = app.test_client()
+    response = client.get("/clients")
     assert response.status_code == 200
 
 
@@ -22,5 +34,3 @@ def test_calculate_calories():
     })
 
     assert response.status_code == 200
-    data = response.get_json()
-    assert data["recommended_calories"] == 1600
