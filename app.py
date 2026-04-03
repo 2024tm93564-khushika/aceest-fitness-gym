@@ -14,14 +14,27 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
+
+    # Existing table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS clients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            program TEXT NOT NULL,
-            calories INTEGER NOT NULL
+            name TEXT UNIQUE,
+            program TEXT,
+            calories INTEGER
         )
     """)
+
+    # ✅ NEW TABLE (v2.0.1)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            week TEXT,
+            adherence INTEGER
+        )
+    """)
+
     conn.close()
 
 
@@ -37,10 +50,10 @@ programs = {
 
 @app.route("/")
 def home():
-    return jsonify({"message": "ACEest Fitness API v2.1"})
+    return jsonify({"message": "ACEest Fitness API v2.0.1"})
 
 
-# ✅ ADD CLIENT WITH VALIDATION
+# ✅ EXISTING (kept from v2.0)
 @app.route("/add-client", methods=["POST"])
 def add_client():
     data = request.get_json()
@@ -49,38 +62,60 @@ def add_client():
     program = data.get("program")
     calories = data.get("calories")
 
-    # Validation
-    if not name or not isinstance(name, str):
-        return jsonify({"error": "Invalid name"}), 400
-
-    if program not in programs:
-        return jsonify({"error": "Invalid program"}), 400
-
-    if not isinstance(calories, int) or calories <= 0:
-        return jsonify({"error": "Invalid calories"}), 400
+    if not name or program not in programs:
+        return {"error": "Invalid data"}, 400
 
     conn = get_db_connection()
     conn.execute(
-        "INSERT INTO clients (name, program, calories) VALUES (?, ?, ?)",
-        (name.strip(), program, calories)
+        "INSERT OR REPLACE INTO clients (name, program, calories) VALUES (?, ?, ?)",
+        (name, program, calories)
     )
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "Client added successfully"}), 201
+    return {"message": "Client saved"}, 201
 
 
-# ✅ GET CLIENTS
-@app.route("/clients")
-def get_clients():
+# ✅ NEW: GET CLIENT
+@app.route("/client/<name>")
+def get_client(name):
     conn = get_db_connection()
-    clients = conn.execute("SELECT * FROM clients").fetchall()
+    row = conn.execute(
+        "SELECT * FROM clients WHERE name=?",
+        (name,)
+    ).fetchone()
     conn.close()
 
-    return jsonify([dict(row) for row in clients])
+    if not row:
+        return {"error": "Client not found"}, 404
+
+    return jsonify(dict(row))
 
 
-# ✅ CALORIE CALCULATION
+# ✅ NEW: SAVE PROGRESS
+@app.route("/progress", methods=["POST"])
+def save_progress():
+    data = request.get_json()
+
+    name = data.get("name")
+    week = data.get("week")
+    adherence = data.get("adherence")
+
+    if not name or not week or adherence is None:
+        return {"error": "Invalid data"}, 400
+
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO progress (name, week, adherence) VALUES (?, ?, ?)",
+        (name, week, adherence)
+    )
+    conn.commit()
+    conn.close()
+
+    return {"message": "Progress saved"}, 201
+
+
+# ✅ EXISTING (kept)
 @app.route("/calculate-calories", methods=["POST"])
 def calculate_calories():
     data = request.get_json()
@@ -89,14 +124,11 @@ def calculate_calories():
     base_calories = data.get("base_calories")
 
     if program not in programs:
-        return jsonify({"error": "Invalid program"}), 400
+        return {"error": "Invalid program"}, 400
 
-    if not isinstance(base_calories, int) or base_calories <= 0:
-        return jsonify({"error": "Invalid calories"}), 400
-
-    return jsonify({
+    return {
         "recommended_calories": base_calories * programs[program]
-    })
+    }
 
 
 if __name__ == "__main__":

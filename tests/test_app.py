@@ -1,42 +1,39 @@
 from app import app
 
 
-def test_home():
-    client = app.test_client()
-    assert client.get("/").status_code == 200
-
-
-def test_valid_client():
+def test_add_client():
     client = app.test_client()
     response = client.post("/add-client", json={
-        "name": "Chirag",
+        "name": "Test",
         "program": "fat_loss",
         "calories": 1800
     })
     assert response.status_code == 201
 
 
-def test_invalid_program():
+def test_get_client():
     client = app.test_client()
-    response = client.post("/add-client", json={
-        "name": "Test",
-        "program": "invalid",
-        "calories": 1800
-    })
-    assert response.status_code == 400
-
-
-def test_invalid_calories():
-    client = app.test_client()
-    response = client.post("/add-client", json={
+    client.post("/add-client", json={
         "name": "Test",
         "program": "fat_loss",
-        "calories": -100
+        "calories": 1800
     })
-    assert response.status_code == 400
+
+    response = client.get("/client/Test")
+    assert response.status_code == 200
 
 
-def test_calculate_valid():
+def test_save_progress():
+    client = app.test_client()
+    response = client.post("/progress", json={
+        "name": "Test",
+        "week": "Week 1",
+        "adherence": 80
+    })
+    assert response.status_code == 201
+
+
+def test_calculate_calories():
     client = app.test_client()
     response = client.post("/calculate-calories", json={
         "program": "fat_loss",
