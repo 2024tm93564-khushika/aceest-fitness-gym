@@ -12,15 +12,14 @@ def get_db_connection():
     return conn
 
 
-# Initialize DB
 def init_db():
     conn = get_db_connection()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS clients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            program TEXT,
-            calories INTEGER
+            name TEXT NOT NULL,
+            program TEXT NOT NULL,
+            calories INTEGER NOT NULL
         )
     """)
     conn.close()
@@ -30,17 +29,18 @@ init_db()
 
 
 programs = {
-    "fat_loss": {"calorie_factor": 0.8},
-    "muscle_gain": {"calorie_factor": 1.2},
-    "beginner": {"calorie_factor": 1.0}
+    "fat_loss": 0.8,
+    "muscle_gain": 1.2,
+    "beginner": 1.0
 }
 
 
 @app.route("/")
 def home():
-    return "ACEest Fitness & Gym API with Database"
+    return jsonify({"message": "ACEest Fitness API v2.1"})
 
 
+# ✅ ADD CLIENT WITH VALIDATION
 @app.route("/add-client", methods=["POST"])
 def add_client():
     data = request.get_json()
@@ -49,20 +49,28 @@ def add_client():
     program = data.get("program")
     calories = data.get("calories")
 
-    if not name or not program or calories is None:
-        return {"error": "Missing fields"}, 400
+    # Validation
+    if not name or not isinstance(name, str):
+        return jsonify({"error": "Invalid name"}), 400
+
+    if program not in programs:
+        return jsonify({"error": "Invalid program"}), 400
+
+    if not isinstance(calories, int) or calories <= 0:
+        return jsonify({"error": "Invalid calories"}), 400
 
     conn = get_db_connection()
     conn.execute(
         "INSERT INTO clients (name, program, calories) VALUES (?, ?, ?)",
-        (name, program, calories)
+        (name.strip(), program, calories)
     )
     conn.commit()
     conn.close()
 
-    return {"message": "Client added to database"}, 201
+    return jsonify({"message": "Client added successfully"}), 201
 
 
+# ✅ GET CLIENTS
 @app.route("/clients")
 def get_clients():
     conn = get_db_connection()
@@ -72,6 +80,7 @@ def get_clients():
     return jsonify([dict(row) for row in clients])
 
 
+# ✅ CALORIE CALCULATION
 @app.route("/calculate-calories", methods=["POST"])
 def calculate_calories():
     data = request.get_json()
@@ -79,17 +88,15 @@ def calculate_calories():
     program = data.get("program")
     base_calories = data.get("base_calories")
 
-    if not program or base_calories is None:
-        return {"error": "Missing data"}, 400
+    if program not in programs:
+        return jsonify({"error": "Invalid program"}), 400
 
-    factor = programs.get(program, {}).get("calorie_factor")
+    if not isinstance(base_calories, int) or base_calories <= 0:
+        return jsonify({"error": "Invalid calories"}), 400
 
-    if not factor:
-        return {"error": "Invalid program"}, 400
-
-    return {
-        "recommended_calories": base_calories * factor
-    }
+    return jsonify({
+        "recommended_calories": base_calories * programs[program]
+    })
 
 
 if __name__ == "__main__":
