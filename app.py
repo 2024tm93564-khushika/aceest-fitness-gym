@@ -1,9 +1,10 @@
 from flask import Flask, jsonify, request
 import sqlite3
+import os
 
 app = Flask(__name__)
 
-DATABASE = "clients.db"
+DATABASE = os.environ.get("DB_PATH", "clients.db")
 
 
 def get_db_connection():
@@ -15,7 +16,6 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
 
-    # Existing table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS clients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +25,6 @@ def init_db():
         )
     """)
 
-    # ✅ NEW TABLE (v2.0.1)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS progress (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,10 +34,8 @@ def init_db():
         )
     """)
 
+    conn.commit()
     conn.close()
-
-
-init_db()
 
 
 programs = {
@@ -53,7 +50,11 @@ def home():
     return jsonify({"message": "ACEest Fitness API v2.0.1"})
 
 
-# ✅ EXISTING (kept from v2.0)
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "app": "ACEest Fitness API"}), 200
+
+
 @app.route("/add-client", methods=["POST"])
 def add_client():
     data = request.get_json()
@@ -76,7 +77,6 @@ def add_client():
     return {"message": "Client saved"}, 201
 
 
-# ✅ NEW: GET CLIENT
 @app.route("/client/<name>")
 def get_client(name):
     conn = get_db_connection()
@@ -92,7 +92,6 @@ def get_client(name):
     return jsonify(dict(row))
 
 
-# ✅ NEW: SAVE PROGRESS
 @app.route("/progress", methods=["POST"])
 def save_progress():
     data = request.get_json()
@@ -115,7 +114,6 @@ def save_progress():
     return {"message": "Progress saved"}, 201
 
 
-# ✅ EXISTING (kept)
 @app.route("/calculate-calories", methods=["POST"])
 def calculate_calories():
     data = request.get_json()
@@ -126,10 +124,11 @@ def calculate_calories():
     if program not in programs:
         return {"error": "Invalid program"}, 400
 
-    return {
+    return jsonify({
         "recommended_calories": base_calories * programs[program]
-    }
+    })
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    init_db()
+    app.run(debug=False)
