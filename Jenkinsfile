@@ -7,20 +7,13 @@ pipeline {
 
     stages {
 
-        // ─────────────────────────────────────────────
-        // STAGE 1: Install Python dependencies
-        // ─────────────────────────────────────────────
         stage('Install Dependencies') {
             steps {
                 echo '>>> Installing Python dependencies...'
-                bat 'python -m pip install --upgrade pip'
-                bat 'pip install -r requirements.txt'
+                bat 'python -m pip install -r requirements.txt'
             }
         }
 
-        // ─────────────────────────────────────────────
-        // STAGE 2: Build Validation (syntax check)
-        // ─────────────────────────────────────────────
         stage('Build Validation') {
             steps {
                 echo '>>> Validating Python syntax...'
@@ -29,19 +22,13 @@ pipeline {
             }
         }
 
-        // ─────────────────────────────────────────────
-        // STAGE 3: Run Unit Tests
-        // ─────────────────────────────────────────────
         stage('Run Tests') {
             steps {
                 echo '>>> Running Pytest test suite...'
-                bat 'pytest tests/ -v --tb=short'
+                bat 'python -m pytest tests/ -v --tb=short'
             }
         }
 
-        // ─────────────────────────────────────────────
-        // STAGE 4: Build Docker Image
-        // ─────────────────────────────────────────────
         stage('Docker Build') {
             steps {
                 echo '>>> Building Docker image...'
