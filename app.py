@@ -163,6 +163,9 @@ def add_progress():
 
     return {"message": "Progress saved"}, 201
 
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "app": "ACEest Fitness API"}), 200
 
 # 🔹 GET PROGRESS
 @app.route("/progress/<name>", methods=["GET"])
@@ -200,4 +203,5 @@ def calculate_calories():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    init_db()
+    app.run(host="0.0.0.0", port=5000, debug=False)
