@@ -1,10 +1,9 @@
 from flask import Flask, jsonify, request
 import sqlite3
-import os
 
 app = Flask(__name__)
 
-DATABASE = os.environ.get("DB_PATH", "clients.db")
+DATABASE = "clients.db"
 
 
 def get_db_connection():
@@ -34,8 +33,10 @@ def init_db():
         )
     """)
 
-    conn.commit()
     conn.close()
+
+
+init_db()
 
 
 programs = {
@@ -47,14 +48,10 @@ programs = {
 
 @app.route("/")
 def home():
-    return jsonify({"message": "ACEest Fitness API v2.0.1"})
+    return jsonify({"message": "ACEest Fitness API v2.2.4 FINAL"})
 
 
-@app.route("/health")
-def health():
-    return jsonify({"status": "ok", "app": "ACEest Fitness API"}), 200
-
-
+# ✅ ADD / UPDATE CLIENT
 @app.route("/add-client", methods=["POST"])
 def add_client():
     data = request.get_json()
@@ -63,13 +60,19 @@ def add_client():
     program = data.get("program")
     calories = data.get("calories")
 
-    if not name or program not in programs:
-        return {"error": "Invalid data"}, 400
+    if not isinstance(name, str) or not name.strip():
+        return {"error": "Invalid name"}, 400
+
+    if program not in programs:
+        return {"error": "Invalid program"}, 400
+
+    if not isinstance(calories, int) or calories <= 0:
+        return {"error": "Invalid calories"}, 400
 
     conn = get_db_connection()
     conn.execute(
         "INSERT OR REPLACE INTO clients (name, program, calories) VALUES (?, ?, ?)",
-        (name, program, calories)
+        (name.strip(), program, calories)
     )
     conn.commit()
     conn.close()
@@ -77,6 +80,7 @@ def add_client():
     return {"message": "Client saved"}, 201
 
 
+# ✅ GET CLIENT
 @app.route("/client/<name>")
 def get_client(name):
     conn = get_db_connection()
@@ -92,6 +96,7 @@ def get_client(name):
     return jsonify(dict(row))
 
 
+# ✅ SAVE PROGRESS
 @app.route("/progress", methods=["POST"])
 def save_progress():
     data = request.get_json()
@@ -100,7 +105,7 @@ def save_progress():
     week = data.get("week")
     adherence = data.get("adherence")
 
-    if not name or not week or adherence is None:
+    if not name or not week or not isinstance(adherence, int):
         return {"error": "Invalid data"}, 400
 
     conn = get_db_connection()
@@ -114,6 +119,34 @@ def save_progress():
     return {"message": "Progress saved"}, 201
 
 
+# ✅ GET PROGRESS
+@app.route("/progress/<name>")
+def get_progress(name):
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT week, adherence FROM progress WHERE name=?",
+        (name,)
+    ).fetchall()
+    conn.close()
+
+    if not rows:
+        return {"message": "No progress found"}, 404
+
+    return jsonify([dict(row) for row in rows])
+
+
+# ✅ DELETE CLIENT (NEW IN FINAL)
+@app.route("/client/<name>", methods=["DELETE"])
+def delete_client(name):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM clients WHERE name=?", (name,))
+    conn.commit()
+    conn.close()
+
+    return {"message": "Client deleted"}
+
+
+# ✅ CALCULATE CALORIES
 @app.route("/calculate-calories", methods=["POST"])
 def calculate_calories():
     data = request.get_json()
@@ -124,11 +157,13 @@ def calculate_calories():
     if program not in programs:
         return {"error": "Invalid program"}, 400
 
-    return jsonify({
+    if not isinstance(base_calories, int):
+        return {"error": "Invalid calories"}, 400
+
+    return {
         "recommended_calories": base_calories * programs[program]
-    })
+    }
 
 
 if __name__ == "__main__":
-    init_db()
-    app.run(debug=False)
+    app.run(debug=True)
